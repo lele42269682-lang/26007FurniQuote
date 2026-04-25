@@ -7,6 +7,7 @@ from schemas.customer import Customer, CustomerCreate
 from schemas.product import Product, ProductLifecycleStage
 from schemas.pricing import PricingRequest, PricingResponse, PricingBreakdown
 from schemas.quote import Quote, QuoteVersion, QuoteStatus
+from schemas.bug import Bug, BugReportInput, BugSeverity, BugStatus, BugSource
 
 __all__ = [
     "CustomerTier",
@@ -23,4 +24,9 @@ __all__ = [
     "Quote",
     "QuoteVersion",
     "QuoteStatus",
+    "Bug",
+    "BugReportInput",
+    "BugSeverity",
+    "BugStatus",
+    "BugSource",
 ]

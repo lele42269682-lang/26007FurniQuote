@@ -1,8 +1,10 @@
 """
 api_gateway.py — 前后台接口统一层
 
-所有模块的 FastAPI 路由必须通过此处注册，禁止前端直接 fetch 模块内部地址。
-当前为骨架阶段，仅提供基础健康检查与模块发现接口；各模块开发完成后在此处挂载。
+设计原则（"分与合"隔离）：
+  - 注册任何模块路由失败时，仅记 Error 并跳过该模块，绝不让单点失败阻塞整个 FastAPI 启动
+  - 所有路由均经过 utils.isolation 装饰，业务异常不外泄给前端
+  - 前端禁止直接 fetch 模块内部地址，必须走 /api/{module_id}/* 前缀
 """
 from __future__ import annotations
 
@@ -10,22 +12,15 @@ from typing import Any
 
 from fastapi import APIRouter, FastAPI
 
-from utils.logger import get_module_logger
+from modules.registry import MODULES, health_check_all, list_modules
+from utils.isolation import safe_import_module
+from utils.logger import get_module_logger, log_error
 
 logger = get_module_logger("API_GATEWAY")
 
-# 各模块路由占位（开发后逐个 import 并 include_router）
-MODULE_ROUTERS: dict[str, str] = {
-    # 模块ID -> dotted path（待开发，目前注释保留）
-    # "m10_pricing":  "modules.m10_pricing.main:router",
-    # "m11_3d_modeling": "modules.m11_3d_modeling.main:router",
-    # "m13_3d_viewer": "modules.m13_3d_viewer.main:router",
-    # "m15_customer": "modules.m15_customer.main:router",
-}
-
 
 def _build_system_router(config: dict[str, Any]) -> APIRouter:
-    """系统级路由：健康检查、模块清单、配置查看（脱敏）"""
+    """系统级路由：健康检查、模块清单、配置查看（脱敏）、模块隔离健康检查"""
     router = APIRouter(prefix="/api/system", tags=["system"])
 
     @router.get("/health")
@@ -33,15 +28,27 @@ def _build_system_router(config: dict[str, Any]) -> APIRouter:
         return {"status": "ok", "app": config.get("app", {}).get("name")}
 
     @router.get("/modules")
-    def list_modules() -> dict:
+    def list_all_modules() -> dict:
         modules_cfg = config.get("modules", {})
-        return {
-            "total": len(modules_cfg),
-            "modules": [
-                {"id": k, "enabled": v.get("enabled"), "priority": v.get("priority")}
-                for k, v in modules_cfg.items()
-            ],
-        }
+        rows = []
+        for meta in list_modules():
+            cfg = modules_cfg.get(meta.id, {})
+            rows.append({
+                "id": meta.id,
+                "name": meta.name,
+                "priority": meta.priority,
+                "enabled": cfg.get("enabled", False),
+                "depends_on": meta.depends_on,
+                "soft_depends": meta.soft_depends,
+            })
+        return {"total": len(rows), "modules": rows}
+
+    @router.get("/modules/health")
+    def modules_health() -> dict:
+        """逐模块独立健康检查 — 单个失败不影响其他结果。"""
+        results = health_check_all()
+        ok_count = sum(1 for r in results if r.get("ok"))
+        return {"ok_count": ok_count, "total": len(results), "details": results}
 
     @router.get("/config")
     def show_config() -> dict:
@@ -53,7 +60,10 @@ def _build_system_router(config: dict[str, Any]) -> APIRouter:
 
 
 def register_all(app: FastAPI, config: dict[str, Any]) -> None:
-    """主入口：把系统路由 + 启用的业务模块路由挂到 FastAPI app 上。"""
+    """挂载系统路由 + 各启用业务模块路由。
+
+    任何模块路由注册失败仅记录错误，不影响其他模块或系统启动。
+    """
     app.include_router(_build_system_router(config))
     logger.info("已注册系统路由 /api/system/*")
 
@@ -64,15 +74,20 @@ def register_all(app: FastAPI, config: dict[str, Any]) -> None:
         logger.info("当前无启用的业务模块（骨架阶段，正常）")
         return
 
+    registered = 0
     for mid in enabled:
-        dotted = MODULE_ROUTERS.get(mid)
-        if not dotted:
-            logger.warning(
-                "模块 %s 在 config 中已启用，但 MODULE_ROUTERS 未登记路由，跳过", mid
-            )
-            continue
-        # 待各模块开发完成后启用：
-        # module_path, attr = dotted.split(":")
-        # module = importlib.import_module(module_path)
-        # app.include_router(getattr(module, attr))
-        # logger.info("已注册模块路由 %s", mid)
+        try:
+            module = safe_import_module(f"modules.{mid}.main")
+            if module is None:
+                continue
+            # 模块若导出 router，统一挂到 /api/{mid}/*
+            if hasattr(module, "router"):
+                app.include_router(module.router, prefix=f"/api/{mid}", tags=[mid])
+                registered += 1
+                logger.info("已注册模块路由 %s -> /api/%s/*", mid, mid)
+            else:
+                logger.info("模块 %s 已启用但无 router（仅函数级模块），跳过路由注册", mid)
+        except Exception as exc:  # noqa: BLE001  网关必须兜底
+            log_error(logger, f"模块 {mid} 路由注册失败（跳过，不影响其他模块）: {exc}")
+
+    logger.info("路由注册完成: %d/%d 个启用模块", registered, len(enabled))

@@ -12,10 +12,13 @@ m13_3d_viewer · Three.js查看器
 from __future__ import annotations
 
 from utils.logger import get_module_logger, log_error, log_input, log_output
+from utils.isolation import isolated
 
 logger = get_module_logger("M13_3D_VIEWER")
 
 
+
+@isolated(module_id="m13_3d_viewer")
 def run(payload: dict) -> dict:
     """模块入口（占位）。开发时替换为实际业务逻辑。"""
     log_input(logger, payload)

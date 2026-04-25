@@ -3,7 +3,7 @@
 
 验证：
   - master 可加载、配置可读
-  - 全部 19 个模块可 import 且 run() 返回标准占位响应
+  - 全部 21 个模块可 import 且 run() 返回标准占位响应
   - logger 写入文件且格式正确
   - 全部启动检查项通过
 """
@@ -24,7 +24,7 @@ MODULE_IDS = [
     "m05_expert", "m06_material", "m07_dict", "m08_stats", "m09_prompt",
     "m10_pricing", "m11_3d_modeling", "m12_3d_material", "m13_3d_viewer",
     "m14_quote_doc", "m15_customer", "m16_workflow", "m17_dingtalk",
-    "m18_portal", "m19_security",
+    "m18_portal", "m19_security", "m20_bug_tracking", "m21_bug_report",
 ]
 
 
@@ -33,7 +33,7 @@ def test_config_yaml_loadable():
     cfg = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
     assert cfg["app"]["name"] == "FurniQuote AI"
     assert cfg["pricing"]["region"]["US"] == 1.3
-    assert len(cfg["modules"]) == 19
+    assert len(cfg["modules"]) == 21
 
 
 def test_master_importable():

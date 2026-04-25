@@ -1,0 +1,37 @@
+# Pre-commit 钩子（按 config.yaml > testing.pre_commit）
+# 安装：pip install pre-commit && pre-commit install
+# 触发：每次 git commit 前自动运行
+
+repos:
+  - repo: local
+    hooks:
+      - id: pytest-smoke
+        name: 烟囱测试（骨架可用性）
+        entry: python -m pytest tests/auto/test_smoke.py -q
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: pytest-isolation
+        name: 模块隔离测试（确保单点失败不传染）
+        entry: python -m pytest tests/auto/test_isolation.py -q
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: secrets-scan
+        name: 密钥泄露扫描
+        entry: python -c "import re,sys,pathlib; [sys.exit(f'Error: 发现疑似密钥 {p}') for p in pathlib.Path('.').rglob('*.py') if '.git' not in str(p) and 'master.py' != p.name and re.search(r'sk-[a-zA-Z0-9_-]{20,}', p.read_text(encoding='utf-8',errors='ignore'))]"
+        language: system
+        pass_filenames: false
+        always_run: true
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ['--maxkb=2048']
+      - id: detect-private-key

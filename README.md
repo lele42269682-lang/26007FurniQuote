@@ -88,7 +88,7 @@ python master.py
 └── logs/                  ← 日志输出（gitignore）
 ```
 
-## 19 模块状态
+## 21 模块状态
 
 | 模块 | 名称 | 优先级 | 状态 |
 |---|---|---|---|
@@ -111,6 +111,35 @@ python master.py
 | M-17 | 钉钉集成 | P1 | 占位 |
 | M-18 | 客户门户 | P2 | 占位 |
 | M-19 | 安全防泄露 | P1/P2 | 占位 |
+| 🐞 **M-20** | **Bug 记录管理** | P1 | 占位（开发期就启用） |
+| 🐞 **M-21** | **Bug 上报系统** | P1 | 占位（含自动测试失败联动） |
+
+---
+
+## 架构原则：分与合（模块隔离 + 热拔插）
+
+**硬约束**：单个模块出问题不能牵连其他模块；任何模块都可独立运行。
+
+工程实现：
+
+| 机制 | 文件 | 作用 |
+|---|---|---|
+| `@isolated` 装饰器 | [utils/isolation.py](utils/isolation.py) | 模块入口异常自动转换为 `{status:error,isolated:true}`，绝不外抛 |
+| `safe_import_module` | 同上 | 模块导入失败仅记 Error 并返回 None，不阻塞调用方 |
+| `call_module(id, payload, fallback)` | 同上 | 跨模块调用强制走此入口，目标失效时返回降级 |
+| 模块注册中心 | [modules/registry.py](modules/registry.py) | 21 个模块的元数据+依赖图+健康检查，禁止顶层互相 import |
+| api_gateway 单点容错 | [api_gateway.py](api_gateway.py) | 单模块路由注册失败仅记 Error，不阻塞 FastAPI 启动 |
+| 隔离测试 | [tests/auto/test_isolation.py](tests/auto/test_isolation.py) | 自动校验跨模块 import / 异常隔离 / 热拔插能力 |
+
+**禁止行为**：
+- ❌ `from modules.m10_pricing import ...` —— 业务模块间禁止顶层 import（隔离测试会失败）
+- ❌ 模块内 `raise` 不被 `@isolated` 包裹 —— 异常会越界
+- ❌ 配置/密钥在子模块中直接读 —— 必须经总控层
+
+**推荐行为**：
+- ✅ 跨模块通讯：`call_module("m15_customer", payload)`
+- ✅ 共享数据契约：从 `schemas/` 引用 Pydantic 模型
+- ✅ 模块独立自测：`python -m modules.m10_pricing.main`
 
 ---
 

@@ -106,6 +106,8 @@ modules:
   m17_dingtalk:       { enabled: false, priority: "P1" }
   m18_portal:         { enabled: false, priority: "P2" }
   m19_security:       { enabled: false, priority: "P1" }
+  m20_bug_tracking:   { enabled: true,  priority: "P1" }   # 🐞 一开始就启用，开发期就要用
+  m21_bug_report:     { enabled: true,  priority: "P1" }   # 🐞 与 m20 配套
 
 # ===== 密钥变量名清单（实际值从 Keychain 注入，不在此处存值）=====
 secrets:
@@ -118,6 +120,50 @@ secrets:
     - DEEPSEEK_API_KEY
     - DINGTALK_APP_KEY
     - DINGTALK_APP_SECRET
+
+# ===== Bug 管理与上报 =====
+bug_tracking:
+  id_format: "BUG-{year}-{seq:04d}"
+  auto_assign:
+    critical: "tech_lead"      # 严重级 Bug 自动指派给技术负责人
+    high: "module_owner"       # 高级 Bug 指派给模块负责人
+  notification:
+    dingtalk_on_critical: true
+    dingtalk_on_high: true
+    email_on_close: true
+  retention_days: 365          # Bug 记录保留期
+
+bug_report:
+  rate_limit_per_user_per_hour: 20
+  auto_collect:
+    page_url: true
+    user_agent: true
+    console_logs: true
+    screenshot: true            # 客户端 SDK 自动截屏
+    network_recent_requests: 10 # 保留最近 N 条请求记录
+  auto_report_on_test_failure: true   # 自动化测试失败 → 自动建 Bug
+
+# ===== 自动化测试系统 =====
+testing:
+  layers:
+    auto: true                 # 第一层：pytest 自动化测试
+    manual: true               # 第二层：tests/manual/ 手工测试文档
+    dashboard: true            # 第三层：tests/test_ui/ 测试 Dashboard
+  ci:
+    enabled: true
+    provider: "github_actions"
+    triggers: ["push", "pull_request"]
+    required_passing: true     # 测试不通过禁止合并
+    coverage_threshold: 70     # 覆盖率最低线（百分比）
+  pre_commit:
+    enabled: true
+    run_smoke_tests: true      # commit 前自动跑烟囱测试
+    block_on_failure: true
+  watch_mode:
+    enabled: false             # 开发模式下文件变化触发增量测试
+  failure_handling:
+    create_bug_on_fail: true   # 失败自动经 m21_bug_report 建 Bug
+    notify_dingtalk: true
 
 # ===== 客户门户安全 =====
 portal:

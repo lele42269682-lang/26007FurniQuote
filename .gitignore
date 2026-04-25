@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.eggs/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# 敏感信息（绝对不上传）
+.env
+.env.local
+.env.*.local
+*.env
+secrets/
+credentials/
+*.key
+*.pem
+*.p12
+serviceAccountKey.json
+
+# 日志
+logs/*.log
+!logs/.gitkeep
+
+# 数据库
+*.db
+*.sqlite
+*.sqlite3
+
+# 操作系统
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 前端
+node_modules/
+dist/
+build/
+.cache/
+
+# 数据文件夹（按需 .gitkeep 占位）
+data/uploads/
+data/generated/
+chroma_db/

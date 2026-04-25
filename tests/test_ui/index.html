@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FurniQuote AI · 测试 Dashboard</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+         background: #1a1d24; color: #e4e6eb; padding: 24px; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .subtitle { color: #8a8f98; margin-bottom: 24px; font-size: 14px; }
+  .health { display: inline-block; padding: 4px 10px; border-radius: 12px;
+            font-size: 12px; margin-left: 12px; }
+  .health.ok { background: #1f5f3f; color: #6dffaa; }
+  .health.fail { background: #5f1f1f; color: #ff8888; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          gap: 12px; margin-bottom: 24px; }
+  .card { background: #252932; border-radius: 8px; padding: 14px;
+          border-left: 4px solid #444; }
+  .card.p0 { border-left-color: #ff5252; }
+  .card.p1 { border-left-color: #ffa726; }
+  .card.p2 { border-left-color: #5e9eff; }
+  .card-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+  .card-desc { font-size: 12px; color: #8a8f98; margin-bottom: 10px;
+               line-height: 1.5; min-height: 36px; }
+  .actions { display: flex; gap: 6px; }
+  .btn { background: #3a3f4a; color: #e4e6eb; border: none; padding: 6px 12px;
+         border-radius: 4px; font-size: 12px; cursor: pointer; }
+  .btn:hover { background: #4a505b; }
+  .btn.primary { background: #5e9eff; color: #fff; }
+  .priority { display: inline-block; padding: 2px 6px; font-size: 10px;
+              border-radius: 3px; background: #3a3f4a; margin-left: 6px; }
+  .log-panel { background: #0f1115; border-radius: 8px; padding: 16px;
+               height: 240px; overflow-y: auto; font-family: 'Monaco', monospace;
+               font-size: 12px; line-height: 1.6; }
+  .log-panel .info { color: #8ec5ff; }
+  .log-panel .err { color: #ff8888; }
+  h2 { font-size: 16px; margin: 16px 0 10px; }
+</style>
+</head>
+<body>
+
+<h1>FurniQuote AI · 测试 Dashboard
+  <span class="health ok" id="healthBadge">● 服务运行中</span>
+</h1>
+<div class="subtitle">19 模块占位结构 · 骨架阶段（尚无业务实现） · 按 CLAUDE.md v1.2 规范</div>
+
+<h2>模块测试入口</h2>
+<div class="grid" id="moduleGrid"></div>
+
+<h2>实时日志</h2>
+<div class="log-panel" id="logPanel">
+  <div class="info">[--:--:--] [DASHBOARD] 等待 master.py 启动后接入实时日志...</div>
+</div>
+
+<script>
+const MODULES = [
+  { id: "m01_auth", name: "认证", prio: "P1", desc: "用户登录/Token/权限分级" },
+  { id: "m02_folder", name: "文件夹管理", prio: "P1", desc: "图片/资料文件夹组织" },
+  { id: "m03_ai_recognize", name: "AI视觉识别", prio: "P1", desc: "百炼 qwen3-vl-plus 识别家具特征" },
+  { id: "m04_annotation", name: "标注", prio: "P1", desc: "标注训练数据采集（工具A）" },
+  { id: "m05_expert", name: "专家审核", prio: "P1", desc: "AI识别结果人工校正" },
+  { id: "m06_material", name: "材质库", prio: "P0", desc: "木材/油漆/面料/五金/桌面 五类样板" },
+  { id: "m07_dict", name: "词典", prio: "P1", desc: "家具行业术语词典" },
+  { id: "m08_stats", name: "统计与RAG", prio: "P1", desc: "ChromaDB 历史报价向量检索" },
+  { id: "m09_prompt", name: "Prompt管理", prio: "P1", desc: "AI 调用模板管理" },
+  { id: "m10_pricing", name: "报价引擎", prio: "P0", desc: "🔴 五维定价矩阵核心" },
+  { id: "m11_3d_modeling", name: "混元3D建模", prio: "P0", desc: "🔴 客户图片 → GLB 3D模型" },
+  { id: "m12_3d_material", name: "Seedream材质换图", prio: "P0", desc: "🔴 3D模型 + 材质 → 高清效果图" },
+  { id: "m13_3d_viewer", name: "Three.js查看器", prio: "P0", desc: "🔴 浏览器3D旋转 + 实时预览" },
+  { id: "m14_quote_doc", name: "报价单生成", prio: "P1", desc: "PDF/Excel 三语报价单" },
+  { id: "m15_customer", name: "客户档案", prio: "P0", desc: "🔴 客户分级/承价/地区管理" },
+  { id: "m16_workflow", name: "业务流程引擎", prio: "P1", desc: "14步状态机" },
+  { id: "m17_dingtalk", name: "钉钉集成", prio: "P1", desc: "通知+审批+查看详情" },
+  { id: "m18_portal", name: "客户门户", prio: "P2", desc: "海外客户自助配置" },
+  { id: "m19_security", name: "安全防泄露", prio: "P1", desc: "水印+设备指纹+OTP+审计" },
+];
+
+const grid = document.getElementById("moduleGrid");
+MODULES.forEach(m => {
+  const card = document.createElement("div");
+  card.className = `card ${m.prio.toLowerCase()}`;
+  card.innerHTML = `
+    <div class="card-title">${m.id} · ${m.name}<span class="priority">${m.prio}</span></div>
+    <div class="card-desc">${m.desc}</div>
+    <div class="actions">
+      <button class="btn primary" onclick="runTest('${m.id}')">运行自动测试</button>
+      <button class="btn" onclick="markManual('${m.id}')">✓ 手工通过</button>
+    </div>
+  `;
+  grid.appendChild(card);
+});
+
+function appendLog(text, type = "info") {
+  const panel = document.getElementById("logPanel");
+  const ts = new Date().toLocaleTimeString();
+  const line = document.createElement("div");
+  line.className = type;
+  line.textContent = `[${ts}] ${text}`;
+  panel.appendChild(line);
+  panel.scrollTop = panel.scrollHeight;
+}
+
+async function runTest(mid) {
+  appendLog(`触发模块 ${mid} 自动测试...`);
+  try {
+    const resp = await fetch(`/api/test/${mid}`).catch(() => null);
+    if (!resp || !resp.ok) {
+      appendLog(`接口 /api/test/${mid} 尚未实现（占位阶段）`, "err");
+      return;
+    }
+    const data = await resp.json();
+    appendLog(`${mid}: ${JSON.stringify(data)}`);
+  } catch (e) {
+    appendLog(`Error: ${e.message}`, "err");
+  }
+}
+
+function markManual(mid) {
+  appendLog(`已记录 ${mid} 手工测试通过`);
+}
+
+// 健康检查
+fetch("/api/system/health").then(r => r.json()).then(d => {
+  document.getElementById("healthBadge").textContent = `● ${d.app} 运行中`;
+}).catch(() => {
+  const badge = document.getElementById("healthBadge");
+  badge.textContent = "● 离线（请启动 master.py）";
+  badge.className = "health fail";
+});
+</script>
+</body>
+</html>

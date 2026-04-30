@@ -53,3 +53,18 @@ build/
 data/uploads/
 data/generated/
 chroma_db/
+
+# 本地导入/调试产物（不要进 Git）
+data/uploaded_quote_files/
+data/imported_quote_images/
+data/exports/
+data/tmp_image_inspect/
+历史报价单/
+
+# 本地工具产物
+Excel PDF导入数据库转换工具/
+*.tar.gz
+
+# 运行日志
+logs/
+!logs/.gitkeep

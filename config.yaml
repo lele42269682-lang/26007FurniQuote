@@ -26,6 +26,25 @@ chroma:
   persist_dir: "./chroma_db"
   collection: "furniquote_history_quotes"
 
+# ===== 报价单生成（M-14）=====
+quote_doc:
+  standard_template: "./templates/quote_standard.xlsx"
+  domestic_cn_template: "./templates/quote_domestic_cn.xlsx"
+
+# ===== 历史报价单导入（M-08）=====
+quote_import:
+  usd_to_cny: 7.0
+  image_output_dir: "./data/imported_quote_images"
+  upload_dir: "./data/uploaded_quote_files"
+  llm:
+    enabled_by_default: false
+    provider_id: "dashscope"
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    api_key_env: "DASHSCOPE_API_KEY"
+    model: "qwen3-max"
+    temperature: 0.1
+    max_tokens: 3000
+
 # ===== 五维定价系数（M-10 报价引擎专用，按需求 v6.0 第四部分录入）=====
 pricing:
   # 维度一：客户级别系数
@@ -89,20 +108,20 @@ product:
 modules:
   m01_auth:           { enabled: false, priority: "P1" }
   m02_folder:         { enabled: false, priority: "P1" }
-  m03_ai_recognize:   { enabled: false, priority: "P1" }
-  m04_annotation:     { enabled: false, priority: "P1" }
-  m05_expert:         { enabled: false, priority: "P1" }
-  m06_material:       { enabled: false, priority: "P0" }
+  m03_ai_recognize:   { enabled: true,  priority: "P1" }
+  m04_annotation:     { enabled: true,  priority: "P1" }
+  m05_expert:         { enabled: true,  priority: "P1" }
+  m06_material:       { enabled: true,  priority: "P0" }
   m07_dict:           { enabled: false, priority: "P1" }
-  m08_stats:          { enabled: false, priority: "P1" }
+  m08_stats:          { enabled: true,  priority: "P1" }
   m09_prompt:         { enabled: false, priority: "P1" }
-  m10_pricing:        { enabled: false, priority: "P0" }
+  m10_pricing:        { enabled: true,  priority: "P0" }
   m11_3d_modeling:    { enabled: false, priority: "P0" }
   m12_3d_material:    { enabled: false, priority: "P0" }
   m13_3d_viewer:      { enabled: false, priority: "P0" }
-  m14_quote_doc:      { enabled: false, priority: "P1" }
-  m15_customer:       { enabled: false, priority: "P0" }
-  m16_workflow:       { enabled: false, priority: "P1" }
+  m14_quote_doc:      { enabled: true,  priority: "P1" }
+  m15_customer:       { enabled: true,  priority: "P0" }
+  m16_workflow:       { enabled: true,  priority: "P1" }
   m17_dingtalk:       { enabled: false, priority: "P1" }
   m18_portal:         { enabled: false, priority: "P2" }
   m19_security:       { enabled: false, priority: "P1" }

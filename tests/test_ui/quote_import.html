@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FurniQuote AI · 历史报价导入</title>
+<script>
+if (window.location.protocol === "file:") {
+  window.location.replace("http://127.0.0.1:8001/test/quote_import.html");
+}
+</script>
+<style>
+:root {
+  --bg: #f7f6f3;
+  --panel: #fff;
+  --line: #ddd8cf;
+  --text: #1d1b17;
+  --muted: #7a7468;
+  --accent: #bd6a2f;
+  --green: #2e7d52;
+  --soft: #efede7;
+  --radius: 6px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif; background: var(--bg); color: var(--text); font-size: 13px; }
+.topbar { height: 48px; background: var(--panel); border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 18px; padding: 0 18px; }
+.brand { font-weight: 800; }
+.back-link { display: inline-flex; align-items: center; height: 30px; padding: 0 10px; border: 1px solid var(--line); border-radius: 4px; color: var(--text); text-decoration: none; background: var(--soft); font-weight: 700; }
+.nav a { color: var(--muted); text-decoration: none; margin-right: 14px; }
+.nav a.active { color: var(--accent); font-weight: 700; }
+.service-status { margin-left: auto; }
+.shell { display: grid; grid-template-columns: 360px minmax(0, 1fr); height: calc(100vh - 48px); overflow: hidden; }
+.side, .main { min-height: 0; overflow: auto; }
+.side { background: var(--panel); border-right: 1px solid var(--line); padding: 16px; }
+.main { padding: 16px; }
+.section { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 12px; margin-bottom: 12px; }
+.section-title { font-weight: 800; margin-bottom: 8px; }
+.hint { color: var(--muted); font-size: 12px; line-height: 1.6; }
+label { display: block; font-size: 11px; color: var(--muted); margin: 10px 0 4px; }
+input, select, textarea { width: 100%; border: 1px solid var(--line); border-radius: 4px; padding: 7px 9px; background: #fff; font: inherit; }
+textarea { min-height: 96px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; }
+.folder-path { min-height: 54px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.btn { border: 1px solid var(--line); background: #fff; padding: 7px 12px; border-radius: 4px; cursor: pointer; }
+.btn.primary { background: var(--text); color: #fff; border-color: var(--text); }
+.btn.green { background: var(--green); color: #fff; border-color: var(--green); }
+.summary { display: grid; grid-template-columns: repeat(5, minmax(120px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.metric { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px; }
+.metric span { display: block; color: var(--muted); font-size: 11px; }
+.metric strong { display: block; font-size: 20px; margin-top: 3px; }
+table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); }
+th, td { border-bottom: 1px solid var(--line); padding: 7px 8px; vertical-align: top; text-align: left; }
+th { background: var(--soft); color: var(--muted); font-size: 11px; }
+td { font-size: 12px; }
+.money { color: var(--accent); font-weight: 800; white-space: nowrap; }
+.path { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.badge { display: inline-flex; padding: 2px 6px; border-radius: 3px; background: var(--soft); color: var(--muted); font-size: 11px; margin-right: 4px; }
+.log { background: #171612; color: #ede8dc; border-radius: var(--radius); padding: 10px; min-height: 120px; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; }
+.folder-input { display: none; }
+.thumb-button { border: 0; background: transparent; padding: 0; display: block; cursor: zoom-in; }
+.thumb-button:focus-visible .thumb { outline: 2px solid var(--accent); outline-offset: 2px; }
+.thumb { width: 112px; height: 84px; object-fit: contain; background: var(--soft); border: 1px solid var(--line); border-radius: 4px; display: block; }
+.thumb-empty { width: 112px; height: 84px; background: var(--soft); border: 1px dashed var(--line); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 12px; }
+.image-count { color: var(--muted); font-size: 11px; margin-top: 4px; }
+.file-chip { display: inline-flex; max-width: 100%; padding: 2px 6px; border-radius: 3px; background: #f7efe8; color: var(--accent); font-size: 11px; margin-top: 4px; }
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.section-head .section-title { margin-bottom: 0; }
+.file-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.file-tab { border: 1px solid var(--line); background: #fff; border-radius: 4px; padding: 7px 9px; min-width: 150px; max-width: 260px; text-align: left; cursor: pointer; }
+.file-tab.active { border-color: var(--accent); background: #f7efe8; box-shadow: inset 0 0 0 1px var(--accent); }
+.file-tab strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.file-tab span { display: block; color: var(--muted); font-size: 11px; margin-top: 3px; }
+.file-tab.error { border-style: dashed; }
+.image-viewer { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; padding: 24px; background: rgba(16, 15, 12, .82); z-index: 1000; }
+.image-viewer.open { display: flex; }
+.image-viewer-panel { width: min(1180px, 96vw); height: min(860px, 92vh); display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 10px; }
+.image-viewer-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #fff; }
+.image-viewer-head strong { display: block; font-size: 14px; }
+.image-viewer-head span { display: block; max-width: 70vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #d9d2c5; font-size: 12px; margin-top: 3px; }
+.image-viewer-close { border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.12); color: #fff; border-radius: 4px; padding: 7px 12px; cursor: pointer; }
+.image-viewer-body { min-height: 0; display: flex; align-items: center; justify-content: center; }
+.image-viewer-body img { max-width: 100%; max-height: 100%; object-fit: contain; background: #fff; border-radius: 4px; box-shadow: 0 18px 48px rgba(0,0,0,.35); }
+@media (max-width: 900px) {
+  .shell { grid-template-columns: 1fr; height: auto; }
+  .summary { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a class="back-link" href="/test/">返回上一层菜单</a>
+  <div class="brand">历史报价导入</div>
+  <div class="nav">
+    <a class="active" href="/test/quote_import.html">报价单导入</a>
+    <a href="/test/expert_lab.html">专家标注</a>
+    <a href="/test/">模块测试</a>
+  </div>
+  <div class="hint service-status" id="serviceStatus">连接中</div>
+</div>
+
+<div class="shell">
+  <aside class="side">
+    <div class="section">
+      <div class="section-title">导入 Excel / PDF</div>
+      <div class="hint">输入本机文件或文件夹绝对路径。USD 会按 1:7 转成人民币单价，原币种与原单价会保留在 features 中。</div>
+      <label>文件路径</label>
+      <textarea id="filePath">/Users/chenjian/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files/wxid_4571765674311_473e/temp/drag/EA26XS0087厦门阮阮报价单20260416.xlsx</textarea>
+      <label>文件夹路径</label>
+      <textarea class="folder-path" id="folderPath">/Users/chenjian/Documents/claude/26007FurniQuote/历史报价单/测试1</textarea>
+      <div class="grid-2">
+        <div><label>客户等级</label><select id="tier"><option value="">空</option><option value="L1" selected>L1</option><option value="L2">L2</option><option value="L3">L3</option><option value="L4">L4</option><option value="L5">L5</option></select></div>
+        <div><label>地区</label><select id="region"><option value="">自动</option><option value="CN">CN</option><option value="US">US</option><option value="AE">AE</option><option value="AU">AU</option></select></div>
+      </div>
+      <div class="grid-2">
+        <div><label>USD 汇率</label><input id="rate" type="number" value="7" step="0.01"></div>
+        <div><label>外部模型</label><select id="useLlm"><option value="false" selected>不调用</option><option value="true">调用</option></select></div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" onclick="importFile()">导入单个文件</button>
+        <button class="btn green" onclick="importFolderPath()">导入文件夹</button>
+        <button class="btn" onclick="document.getElementById('folderInput').click()">选择文件夹</button>
+        <button class="btn" onclick="loadSample('cn')">中文样例</button>
+        <button class="btn" onclick="loadSample('en')">英文样例</button>
+      </div>
+      <input class="folder-input" id="folderInput" type="file" webkitdirectory directory multiple onchange="importFolder(this.files)">
+    </div>
+
+    <div class="section">
+      <div class="section-title">价格因素分析</div>
+      <div class="hint">从当前历史报价库中按品类、材质、尺寸区间、数量区间等聚合，看哪些因素拉高或压低价格。</div>
+      <div class="actions">
+        <button class="btn green" onclick="analyzeFactors()">刷新分析</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">日志</div>
+      <div class="log" id="log">等待操作...</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="summary">
+      <div class="metric"><span>报价编号</span><strong id="quoteNo">—</strong></div>
+      <div class="metric"><span>客户</span><strong id="customer">—</strong></div>
+      <div class="metric"><span>日期</span><strong id="quoteDate">—</strong></div>
+      <div class="metric"><span>导入产品</span><strong id="imported">0</strong></div>
+      <div class="metric"><span>图片</span><strong id="images">0</strong></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">文件切换</div>
+        <div class="hint" id="fileCountLabel">导入后显示文件</div>
+      </div>
+      <div class="file-tabs" id="fileTabs">
+        <button class="file-tab active" type="button"><strong>全部文件</strong><span>暂无导入结果</span></button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">标准化结果</div>
+        <div class="hint" id="rowFilterLabel">显示全部产品</div>
+      </div>
+      <table>
+        <thead><tr><th>图片</th><th>产品</th><th>品类</th><th>尺寸 mm / cm</th><th>材质/要求</th><th>原价</th><th>人民币单价</th></tr></thead>
+        <tbody id="rows"><tr><td colspan="7" class="hint">暂无导入结果</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <div class="section-title">因素影响</div>
+      <table>
+        <thead><tr><th>因素</th><th>取值</th><th>样本数</th><th>均价</th><th>相对整体</th><th>样本</th></tr></thead>
+        <tbody id="factorRows"><tr><td colspan="6" class="hint">暂无分析</td></tr></tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<div class="image-viewer" id="imageViewer" aria-hidden="true" onclick="if (event.target === this) closeImageViewer()">
+  <div class="image-viewer-panel" role="dialog" aria-modal="true" aria-label="图片预览">
+    <div class="image-viewer-head">
+      <div>
+        <strong id="viewerTitle">图片预览</strong>
+        <span id="viewerMeta"></span>
+      </div>
+      <button class="image-viewer-close" type="button" onclick="closeImageViewer()">关闭</button>
+    </div>
+    <div class="image-viewer-body">
+      <img id="viewerImage" alt="产品大图">
+    </div>
+  </div>
+</div>
+
+<script>
+const API = "/api/m08_stats/run";
+let currentImportRows = [];
+let currentImportData = null;
+let currentImportFiles = [];
+let currentFileFilter = "__all__";
+const samples = {
+  cn: "/Users/chenjian/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files/wxid_4571765674311_473e/temp/drag/EA26XS0087厦门阮阮报价单20260416.xlsx",
+  en: "/Users/chenjian/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files/wxid_4571765674311_473e/temp/drag/2026-04-24 PI-EA260452_Mr. Mark.xlsx"
+};
+
+function el(id) { return document.getElementById(id); }
+function log(text) { el("log").textContent = `[${new Date().toLocaleTimeString()}] ${text}`; }
+function money(value) { return `¥${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`; }
+function esc(text) { return String(text ?? "").replace(/[&<>"']/g, s => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[s])); }
+function loadSample(kind) { el("filePath").value = samples[kind]; el("region").value = kind === "en" ? "US" : "CN"; }
+function imageUrl(path) { return path ? `/api/m08_stats/image?path=${encodeURIComponent(path)}` : ""; }
+function sourceKey(quote) { return quote?._sourceFile || quote?.features?.source_file || ""; }
+function fileLabel(path) { return String(path || "").split(/[\\/]/).filter(Boolean).pop() || String(path || "未知文件"); }
+function displayRows(data) { return [...(data.quotes || []), ...(data.preview_items || [])]; }
+function isQuoteUploadFile(file) {
+  const name = file.name || "";
+  return /\.(xlsx|xlsm|pdf)$/i.test(name) && !name.startsWith("~$") && !name.startsWith(".~");
+}
+function dimsLine(dims, unit) {
+  const values = [dims?.width, dims?.depth, dims?.height].filter(v => v !== undefined && v !== null && v !== "");
+  return values.length ? `${values.join(" x ")} ${unit}` : "";
+}
+function dimensionDisplay(features) {
+  const mm = dimsLine(features.dimensions_mm || {}, "mm");
+  const cm = dimsLine(features.dimensions_cm || {}, "cm");
+  const rawText = features.dimension_text ? esc(features.dimension_text) : "";
+  if (!mm && !cm) return rawText;
+  const raw = rawText ? `<div class="hint">${rawText}</div>` : "";
+  return `${esc(mm || cm)}${cm && mm ? `<div class="hint">${esc(cm)}</div>` : ""}${raw}`;
+}
+function openImageViewer(src, title, meta) {
+  el("viewerImage").src = src;
+  el("viewerImage").alt = title || "产品大图";
+  el("viewerTitle").textContent = title || "图片预览";
+  el("viewerMeta").textContent = meta || "";
+  el("imageViewer").classList.add("open");
+  el("imageViewer").setAttribute("aria-hidden", "false");
+}
+function closeImageViewer() {
+  el("imageViewer").classList.remove("open");
+  el("imageViewer").setAttribute("aria-hidden", "true");
+  el("viewerImage").src = "";
+}
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape") closeImageViewer();
+});
+document.addEventListener("click", event => {
+  const trigger = event.target.closest("[data-view-image]");
+  if (!trigger) return;
+  openImageViewer(trigger.dataset.viewImage, trigger.dataset.title, trigger.dataset.meta);
+});
+
+async function api(payload) {
+  const resp = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+  const data = await resp.json();
+  if (data.status !== "ok") throw new Error(data.error || "请求失败");
+  return data.data;
+}
+
+async function importFile() {
+  try {
+    log("正在导入...");
+    const data = await api({
+      action: "import_quote_file",
+      import_request: {
+        file_path: el("filePath").value.trim(),
+        default_customer_tier: el("tier").value,
+        default_region: el("region").value,
+        usd_to_cny: Number(el("rate").value || 7),
+        use_llm: el("useLlm").value === "true"
+      }
+    });
+    renderImport(data);
+    await analyzeFactors();
+    const recognized = data.recognized_count ?? ((data.imported_count || 0) + (data.preview_count || 0));
+    log(`导入完成：识别 ${recognized} 条产品，其中 ${data.imported_count || 0} 条入价格库，${data.preview_count || 0} 条待补价，跳过 ${data.skipped_count || 0} 条`);
+  } catch (err) { log(err.message); }
+}
+
+async function importFolderPath() {
+  try {
+    const folderPath = el("folderPath").value.trim();
+    if (!folderPath) { log("请先填写文件夹路径"); return; }
+    log("正在扫描文件夹...");
+    const data = await api({
+      action: "import_quote_folder",
+      folder_request: {
+        folder_path: folderPath,
+        recursive: true,
+        default_customer_tier: el("tier").value,
+        default_region: el("region").value,
+        usd_to_cny: Number(el("rate").value || 7),
+        use_llm: el("useLlm").value === "true"
+      }
+    });
+    renderImport(data);
+    await analyzeFactors();
+    const found = data.found_count ?? (data.files || []).length;
+    const recognized = data.recognized_count ?? ((data.imported_count || 0) + (data.preview_count || 0));
+    log(`文件夹导入完成：扫描 ${found} 个文件，识别 ${recognized} 条产品，其中 ${data.imported_count || 0} 条入价格库，${data.preview_count || 0} 条待补价，跳过 ${data.skipped_count || 0} 条`);
+  } catch (err) { log(err.message); }
+}
+
+async function importFolder(fileList) {
+  const files = Array.from(fileList || []).filter(isQuoteUploadFile);
+  if (!files.length) { log("所选文件夹里没有 .xlsx/.xlsm/.pdf 报价单"); return; }
+  const aggregate = { quote_no: "批量导入", customer_name: "多客户", quote_date: "", imported_count: 0, recognized_count: 0, preview_count: 0, skipped_count: 0, images: [], quotes: [], preview_items: [], warnings: [], files: [] };
+  currentImportRows = [];
+  renderImport(aggregate);
+  for (let index = 0; index < files.length; index += 1) {
+    const file = files[index];
+    try {
+      log(`正在导入 ${index + 1}/${files.length}：${file.webkitRelativePath || file.name}`);
+      const content = await fileToBase64(file);
+      const data = await api({
+        action: "import_uploaded_quote_file",
+        upload_request: {
+          file_name: file.name,
+          relative_path: file.webkitRelativePath || file.name,
+          content_base64: content,
+          default_customer_tier: el("tier").value,
+          default_region: el("region").value,
+          usd_to_cny: Number(el("rate").value || 7),
+          use_llm: el("useLlm").value === "true"
+        }
+      });
+      aggregate.imported_count += data.imported_count || 0;
+      aggregate.recognized_count += data.recognized_count || ((data.imported_count || 0) + (data.preview_count || 0));
+      aggregate.preview_count += data.preview_count || 0;
+      aggregate.skipped_count += data.skipped_count || 0;
+      aggregate.images.push(...(data.images || []));
+      aggregate.quotes.push(...(data.quotes || []).map(q => ({ ...q, _sourceFile: file.webkitRelativePath || file.name, _quoteNo: data.quote_no })));
+      aggregate.preview_items.push(...(data.preview_items || []).map(q => ({ ...q, _sourceFile: file.webkitRelativePath || file.name, _quoteNo: data.quote_no })));
+      aggregate.warnings.push(...(data.warnings || []));
+      aggregate.files.push({
+        relative_path: file.webkitRelativePath || file.name,
+        quote_no: data.quote_no,
+        customer_name: data.customer_name,
+        imported_count: data.recognized_count || ((data.imported_count || 0) + (data.preview_count || 0)),
+        priced_count: data.imported_count || 0,
+        preview_count: data.preview_count || 0,
+        skipped_count: data.skipped_count || 0,
+        image_count: (data.images || []).length
+      });
+      renderImport(aggregate);
+    } catch (err) {
+      aggregate.skipped_count += 1;
+      aggregate.warnings.push(`${file.name}: ${err.message}`);
+      aggregate.files.push({
+        relative_path: file.webkitRelativePath || file.name,
+        status: "error",
+        error: err.message,
+        imported_count: 0,
+        skipped_count: 1,
+        image_count: 0
+      });
+      renderImport(aggregate);
+    }
+  }
+  await analyzeFactors();
+  log(`文件夹导入完成：${files.length} 个文件，识别 ${aggregate.recognized_count} 条产品，其中 ${aggregate.imported_count} 条入价格库，${aggregate.preview_count} 条待补价，跳过 ${aggregate.skipped_count} 条`);
+  el("folderInput").value = "";
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("文件读取失败"));
+    reader.onload = () => {
+      const bytes = new Uint8Array(reader.result);
+      let binary = "";
+      const chunk = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunk) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+      }
+      resolve(btoa(binary));
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function renderImport(data) {
+  currentImportData = data;
+  currentFileFilter = "__all__";
+  el("quoteNo").textContent = data.quote_no || "—";
+  el("customer").textContent = data.customer_name || "—";
+  el("quoteDate").textContent = data.quote_date || "—";
+  const rows = displayRows(data);
+  el("imported").textContent = data.recognized_count ?? rows.length;
+  el("images").textContent = (data.images || []).length;
+  currentImportRows = rows;
+  buildFileTabs(data, rows);
+  renderRows();
+}
+
+function buildFileTabs(data, rows) {
+  const files = (data.files || []).map(file => {
+    const key = file.relative_path || file.file_path || "";
+    return {
+      key,
+      label: fileLabel(key),
+      imported: file.recognized_count ?? file.imported_count ?? 0,
+      priced: file.priced_count ?? file.imported_count ?? 0,
+      preview: file.preview_count || 0,
+      skipped: file.skipped_count || 0,
+      images: file.image_count || 0,
+      error: file.error || "",
+      quoteNo: file.quote_no || ""
+    };
+  });
+  if (!files.length && data.source_file) {
+    files.push({
+      key: data.source_file,
+      label: fileLabel(data.source_file),
+      imported: rows.length,
+      skipped: data.skipped_count || 0,
+      images: (data.images || []).length,
+      error: "",
+      quoteNo: data.quote_no || ""
+    });
+  }
+  currentImportFiles = files;
+  renderFileTabs();
+}
+
+function renderFileTabs() {
+  const tabs = el("fileTabs");
+  tabs.innerHTML = "";
+  const allButton = fileTabButton("__all__", "全部文件", `${currentImportRows.length} 条产品 / ${currentImportFiles.length} 个文件`, "");
+  tabs.appendChild(allButton);
+  currentImportFiles.forEach(file => {
+    const priceMeta = file.preview ? ` / ${file.preview} 待补价` : "";
+    const meta = file.error || `${file.imported} 条产品 / ${file.images} 张图${priceMeta}${file.skipped ? ` / 跳过 ${file.skipped}` : ""}`;
+    tabs.appendChild(fileTabButton(file.key, file.label, meta, file.error ? "error" : ""));
+  });
+  const found = currentImportData?.found_count ?? currentImportFiles.length;
+  el("fileCountLabel").textContent = currentImportFiles.length ? `已扫描 ${found} 个文件，可点击切换` : "导入后显示文件";
+}
+
+function fileTabButton(key, title, meta, extraClass) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = `file-tab ${currentFileFilter === key ? "active" : ""} ${extraClass || ""}`.trim();
+  button.onclick = () => selectFileFilter(key);
+  button.innerHTML = `<strong>${esc(title)}</strong><span>${esc(meta)}</span>`;
+  return button;
+}
+
+function selectFileFilter(key) {
+  currentFileFilter = key;
+  renderFileTabs();
+  renderRows();
+}
+
+function renderRows() {
+  const rows = currentFileFilter === "__all__"
+    ? currentImportRows
+    : currentImportRows.filter(q => sourceKey(q) === currentFileFilter);
+  const activeFile = currentImportFiles.find(file => file.key === currentFileFilter);
+  el("rowFilterLabel").textContent = currentFileFilter === "__all__"
+    ? `显示全部 ${currentImportRows.length} 条产品`
+    : `当前文件：${activeFile ? activeFile.label : fileLabel(currentFileFilter)}，${rows.length} 条产品`;
+  el("rows").innerHTML = rows.length ? rows.map(q => {
+    const f = q.features || {};
+    const original = f.original_unit_price ? `${f.original_currency || ""} ${f.original_unit_price}` : "待补价";
+    const material = [f.material, f.finish, f.fabric, f.top, f.requirements].filter(Boolean).join(" / ");
+    const images = f.image_paths || [];
+    const image = images[0] || "";
+    const imageSrc = imageUrl(image);
+    const preview = image ? `<button class="thumb-button" type="button" data-view-image="${esc(imageSrc)}" data-title="${esc(q.product_name)}" data-meta="${esc(sourceKey(q))}"><img class="thumb" src="${imageSrc}" alt="${esc(q.product_name)}"></button><div class="image-count">${images.length} 张图</div>` : `<div class="thumb-empty">无图</div>`;
+    const sourceFile = q._sourceFile || f.source_file || "";
+    const source = sourceFile ? `<div class="file-chip">${esc(sourceFile)}</div>` : "";
+    return `<tr>
+      <td>${preview}</td>
+      <td><strong>${esc(q.product_name)}</strong><div class="hint">${esc(q.product_id)}</div></td>
+      <td><span class="badge">${esc(q.category)}</span></td>
+      <td>${dimensionDisplay(f)}</td>
+      <td>${esc(material)}</td>
+      <td>${esc(original)}${q._previewOnly ? `<span class="badge">未入价格库</span>` : ""}${source}</td>
+      <td class="money">${q.final_price_cny ? money(q.final_price_cny) : "—"}</td>
+    </tr>`;
+  }).join("") : `<tr><td colspan="7" class="hint">${currentFileFilter === "__all__" ? "未识别到产品行" : "当前文件未识别到产品行，可切换到其他文件查看，或后续启用外部模型辅助解析"}</td></tr>`;
+}
+
+async function analyzeFactors() {
+  const data = await api({ action: "analyze_price_factors", min_support: 1, limit: 30 });
+  const rows = data.factors || [];
+  el("factorRows").innerHTML = rows.length ? rows.map(row => `
+    <tr>
+      <td>${esc(row.factor_key)}</td>
+      <td>${esc(row.factor_value)}</td>
+      <td>${row.support_count}</td>
+      <td class="money">${money(row.avg_unit_price_cny)}</td>
+      <td>${row.impact_vs_overall >= 0 ? "+" : ""}${money(row.impact_vs_overall)}</td>
+      <td>${esc((row.sample_quote_ids || []).join(", "))}</td>
+    </tr>
+  `).join("") : `<tr><td colspan="6" class="hint">暂无分析</td></tr>`;
+}
+
+async function init() {
+  try {
+    const health = await fetch("/api/system/health").then(r => r.json());
+    el("serviceStatus").textContent = `${health.app} 已连接`;
+    await analyzeFactors();
+  } catch (_) {
+    el("serviceStatus").textContent = "服务未连接";
+  }
+}
+init();
+</script>
+</body>
+</html>
